@@ -55,7 +55,7 @@ class CanvasWidget(QWidget):
         Creates initial pixmap consisting of the border and the background.
         """
         qp = QPainter(self.pixmap)
-        qp.setRenderHint(QPainter.Antialiasing, True)
+        #qp.setRenderHint(QPainter.Antialiasing, True)
 
         if self.border > 0:
             qp.setBrush(self.border_color)
@@ -71,7 +71,7 @@ class CanvasWidget(QWidget):
         Draws all solid particles from self.particles onto self.pixmap.
         """
         qp = QPainter(self.pixmap)
-        qp.setRenderHint(QPainter.Antialiasing, True)
+        #qp.setRenderHint(QPainter.Antialiasing, True)
 
         qp.setClipRect(self.border, self.border, self.width, self.height)
         qp.setBrush(self.fg_color)
@@ -88,7 +88,7 @@ class CanvasWidget(QWidget):
         particle to the resulting image.
         """
         qp.drawPixmap(0, 0, self.pixmap)
-        qp.setRenderHint(QPainter.Antialiasing, True)
+        #qp.setRenderHint(QPainter.Antialiasing, True)
 
         qp.setClipRect(self.border, self.border, self.width, self.height)
         qp.setBrush(self.fg_color)

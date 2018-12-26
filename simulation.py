@@ -26,7 +26,7 @@ class Example(QWidget):
         self.timer.timeout.connect(self.update_particles)
         self.timer.start(40)
 
-        self.p_size = 2
+        self.p_size = 0.8
         self.gravity = 2
 
         sld = QSlider(Qt.Horizontal, self)
@@ -51,7 +51,7 @@ class Example(QWidget):
         self.moving_particles = [Particle(rand() * 500, rand() * 500, self.p_size) for _ in range(500)]
         central = Particle(250, 250, self.p_size)
         central.solid = True
-        central.make_pixel_stamp(self.pixel_map, 500, 500)
+        central.make_pixel_stamp(self.pixel_map)
         self.solid_particles = [central]
 
         self.wid.set_particles(self.moving_particles + [central])
@@ -87,20 +87,23 @@ class Example(QWidget):
             self.moving_particles += xdd
 
         for p in self.moving_particles:
-            p.make_step(2, self.boundaries)
+            p.make_step(self.pixel_map, 2, self.boundaries)
 
-        new_solid = [p for p in self.moving_particles if p.check_pixel_collision(self.pixel_map, 500, 500)]
-        new_moving = [p for p in self.moving_particles if not p.check_pixel_collision(self.pixel_map, 500, 500)]
+        new_solid = [p for p in self.moving_particles if p.solid]
+        new_moving = [p for p in self.moving_particles if not p.solid]
+
+        #new_solid = [p for p in self.moving_particles if p.check_pixel_collision(self.pixel_map, 500, 500)]
+        #new_moving = [p for p in self.moving_particles if not p.check_pixel_collision(self.pixel_map, 500, 500)]
 
         #new_solid = [p for p in self.moving_particles if p.collides(self.solid_particles)]
         #new_moving = [p for p in self.moving_particles if not p.collides(self.solid_particles)]
 
-        for p in new_solid:
-            p.solid = True
-            p.make_pixel_stamp(self.pixel_map, 500, 500)
+        #for p in new_solid:
+        #    p.solid = True
+        #    p.make_pixel_stamp(self.pixel_map, 500, 500)
 
         for p in new_moving:
-            p.set_gravity(250, 250, self.gravity)
+            p.apply_gravity(250, 250, self.gravity)
 
         self.solid_particles = new_solid
         self.moving_particles = new_moving

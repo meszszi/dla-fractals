@@ -25,22 +25,24 @@ class Particle:
         self.speed_x = 0
         self.speed_y = 0
         self.solid = False
-        self.steps = 1
 
         if radius not in Particle.outer_mask:
             angles = np.linspace(0, 2 * np.pi, 2 * np.pi * self.radius)
             mask = [
                 ((np.cos(a) * (self.radius + collision_eps)),
-                (np.sin(a) * (self.radius + collision_eps)))
+                 (np.sin(a) * (self.radius + collision_eps)))
                 for a in angles
             ]
             Particle.outer_mask[radius] = mask
 
-    def check_pixel_collision(self, pixel_map, width, height, eps=0.5):
+    def check_pixel_collision(self, pixel_map):
         """
         Checks if the particle's circumference intersects with any
         marked pixel on given pixel_map.
         """
+        height = len(pixel_map)
+        width = len(pixel_map[0])
+
         for mx, my in Particle.outer_mask[self.radius]:
             x = int(round(self.pos_x + mx))
             y = int(round(self.pos_y + my))
@@ -52,10 +54,13 @@ class Particle:
 
         return False
 
-    def make_pixel_stamp(self, pixel_map, width, height):
+    def make_pixel_stamp(self, pixel_map):
         """
         Marks all pixels within the particle's range on given pixel map.
         """
+        height = len(pixel_map)
+        width = len(pixel_map[0])
+
         left = max(0, int(self.pos_x - self.radius))
         right = min(width, int(round(self.pos_x + self.radius) + 1))
         top = max(0, int(self.pos_y - self.radius))
@@ -63,7 +68,8 @@ class Particle:
 
         for x in range(left, right):
             for y in range(top, bottom):
-                if np.square(self.pos_x - x) + np.square(self.pos_y - y) <= np.square(self.radius):
+                if np.square(self.pos_x - x) + np.square(
+                                self.pos_y - y) <= np.square(self.radius):
                     pixel_map[y][x] = 1
 
     def move(self, diff_x, diff_y):
@@ -105,7 +111,7 @@ class Particle:
         self.speed_x = diff_x * scalar
         self.speed_y = diff_y * scalar
 
-    def add_random_step(self, step_length, boundaries=None):
+    def get_random_step(self, step_length, boundaries=None):
         """
         Applies random step of given length to the particle.
         If the boundaries are specified, the step is selected so that
@@ -113,46 +119,47 @@ class Particle:
 
         boundaries: 4-element tuple (left_x, top_y, right_x, bottom_y)
         """
-        valid = False
-
-        while not valid:
+        while True:
             direction = np.random.rand() * 2 * np.pi
             step_x = np.cos(direction) * step_length
             step_y = np.sin(direction) * step_length
 
             if boundaries is None:
-                self.move(step_x, step_y)
-                valid = True
+                return step_x, step_y
 
             else:
                 left, top, right, bottom = boundaries
-                valid = (
-                    left <= self.pos_x + step_x <= right and
-                    bottom <= self.pos_y + step_y <= top
-                )
-                if valid:
-                    self.move(step_x, step_y)
+                if (left <= self.pos_x + step_x <= right and
+                                bottom <= self.pos_y + step_y <= top):
+                    return step_x, step_y
 
-    def make_step(self, random_step_length=0, boundaries=None):
+    def apply_collision(self, pixel_map):
+        if not self.check_pixel_collision(pixel_map):
+            return False
+
+        self.make_pixel_stamp(pixel_map)
+        self.solid = True
+        return True
+
+    def make_step(self, pixel_map, random_step_length=0, boundaries=None):
         """
         Moves particle according to it's speed and adds random step
         of given length.
         """
-        self.steps += 1
-        self.move(self.speed_x, self.speed_y)
-        self.add_random_step(random_step_length, boundaries)
+        dx, dy = self.get_random_step(random_step_length, boundaries)
+        dx += self.speed_x
+        dy += self.speed_y
+        v = np.sqrt(dx ** 2 + dy ** 2)
 
-    def collides(self, particles):
-        """
-        Checks if the particle collides with any other particle
-        from given particles list.
-        """
-        for p in particles:
+        prev_x = self.pos_x
+        prev_y = self.pos_y
 
-            squared_diff = np.square(self.pos_x - p.pos_x) + np.square(self.pos_y - p.pos_y)
-            collision_range = self.radius + p.radius
+        for dv in np.linspace(0., 1., num=int(v / self.radius) + 1):
+            self.pos_x = prev_x + dv * dx
+            self.pos_y = prev_y + dv * dy
+            if self.apply_collision(pixel_map):
+                return
 
-            if np.square(collision_range) > squared_diff:
-                return True
-
-        return False
+        self.pos_x = prev_x + dx
+        self.pos_y = prev_y + dy
+        self.apply_collision(pixel_map)
