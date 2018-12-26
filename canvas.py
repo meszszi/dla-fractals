@@ -25,7 +25,7 @@ class CanvasWidget(QWidget):
 
         self.particles = []
         self.pixmap = QPixmap(width + 2 * border, height + 2 * border)
-        self.init_pixmap()
+        self.init_clear_state()
         self.init_ui()
 
     def paintEvent(self, e):
@@ -50,10 +50,11 @@ class CanvasWidget(QWidget):
         """
         self.particles = particles
 
-    def init_pixmap(self):
+    def init_clear_state(self):
         """
         Creates initial pixmap consisting of the border and the background.
         """
+        self.particles = []
         qp = QPainter(self.pixmap)
         #qp.setRenderHint(QPainter.Antialiasing, True)
 
@@ -110,5 +111,11 @@ class CanvasWidget(QWidget):
         if border is not None:
             self.border = border
 
-        self.init_pixmap()
+        self.init_clear_state()
         self.init_ui()
+
+    def clear(self):
+        """
+        Clears the canvas state.
+        """
+        self.init_clear_state()

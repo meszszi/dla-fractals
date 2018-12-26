@@ -1,119 +1,140 @@
-from PyQt5.QtWidgets import (QWidget, QSlider, QApplication,
-                             QHBoxLayout, QVBoxLayout)
-from PyQt5.QtCore import QObject, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QColor
-import sys
-
-from canvas import CanvasWidget
 from particles import Particle
 
 from numpy.random import rand
 import numpy as np
 
 
-class Communicate(QObject):
-    updateBW = pyqtSignal(int)
+class Simulation:
+    """
+    Performs fractal generating simulation, responsible for spawning new
+    random particles
+    """
 
-class Example(QWidget):
-    def __init__(self):
-        super().__init__()
+    def __init__(self,
+                 width, height,
+                 particle_radius,
+                 gravity_center, gravity_force,
+                 rand_step_length,
+                 spawns, particles_per_spawn,
+                 min_spawn_radius, max_spawn_radius,
+                 destroy_radius=None
+                 ):
+        """
+        Initializes simulation parameters
+        :param width:               simulation area width
+        :param height:              simulation area height
+        :param particle_radius:     size of a single particle
+        :param gravity_center:      coordinates of gravity center
+        :param gravity_force:       value of gravity force
+        :param rand_step_length:    length of random step applied to each moving particle
+        :param spawns:              number of spawns that will be simulated
+        :param particles_per_spawn: number of particles spawned in each single spawn
+        :param min_spawn_radius:    minimal distance from gravity center to newly spawned particle
+        :param max_spawn_radius:    maximal distance from gravity center to newly spawned particle
+        :param destroy_radius:      radius limiting the area outside which all the particles are destroyed
+        """
 
-        self.initUI()
+        self.width = width
+        self.height = height
+        self.particle_radius = particle_radius
 
-    def initUI(self):
+        self.gravity_center = gravity_center
+        self.gravity_force = gravity_force
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_particles)
-        self.timer.start(40)
+        self.rand_step_length = rand_step_length
 
-        self.p_size = 0.8
-        self.gravity = 2
+        self.spawns = spawns
+        self.spawn_number = None
+        self.particles_per_spawn = particles_per_spawn
 
-        sld = QSlider(Qt.Horizontal, self)
-        sld.setFocusPolicy(Qt.NoFocus)
-        sld.setRange(2, 100)
-        sld.setValue(30)
-        sld.setGeometry(130, 40, 250, 30)
-        #sld.setMinimumSize(300, 100)
-        self.setMinimumSize(500, 500)
+        self.min_spawn_radius = min_spawn_radius
+        self.max_spawn_radius = max_spawn_radius
+        self.destroy_radius = destroy_radius
 
-        self.c = Communicate()
+        self.collision_map = None
+        self.solid_particles = []
+        self.moving_particles = []
 
-        black = QColor(30, 30, 30)
-        grey = QColor(250, 250, 250)
-        green = QColor(240, 0, 50)
-        self.pixel_map = np.zeros(shape=(500, 500))
+        self.new_solid_particles = []
 
-        self.wid = CanvasWidget(500, 500, grey, green, border=3, border_color=black)
-        self.boundaries = (0, 500, 500, 0)
+    def initialize_simulation(self):
+        """
+        Creates initial simulation state.
+        """
+        self.spawn_number = 0
 
+        self.collision_map = np.zeros(shape=(self.height, self.width))
 
-        self.moving_particles = [Particle(rand() * 500, rand() * 500, self.p_size) for _ in range(500)]
-        central = Particle(250, 250, self.p_size)
-        central.solid = True
-        central.make_pixel_stamp(self.pixel_map)
-        self.solid_particles = [central]
+        center = Particle(
+            self.gravity_center[0],
+            self.gravity_center[1],
+            self.particle_radius)
+        center.solid = True
 
-        self.wid.set_particles(self.moving_particles + [central])
-        #self.c.updateBW[int].connect(self.wid.setValue)
+        center.make_pixel_stamp(self.collision_map)
 
-        sld.valueChanged[int].connect(self.changeValue)
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.wid)
-        vbox = QVBoxLayout()
-        vbox.addStretch(1)
-        vbox.addLayout(hbox)
-        self.setLayout(vbox)
+        self.solid_particles = [center]
+        self.moving_particles = []
+        self.new_solid_particles = []
 
-        self.setGeometry(300, 300, 600, 600)
-        self.setWindowTitle("test")
-        self.show()
+    def spawn_particles(self):
+        """
+        Spawns new particles set.
+        Returns false if the limit of spawns number is reached, true otherwise.
+        """
+        if self.spawn_number == self.spawns:
+            return False
 
-    def changeValue(self, value):
-        self.gravity = value / 10
+        self.spawn_number += 1
+
+        radius_range = self.max_spawn_radius - self.min_spawn_radius
+
+        def rand_particle():
+            r = rand() * radius_range + self.min_spawn_radius
+            a = rand() * 2 * np.pi
+            return Particle(
+                self.gravity_center[0] + np.cos(a) * r,
+                self.gravity_center[1] + np.sin(a) * r,
+                self.particle_radius
+            )
+
+        new_particles = [rand_particle() for _ in range(self.particles_per_spawn)]
+        self.moving_particles += new_particles
+        return True
 
     def update_particles(self):
-        #self.wid.setValue(value)#self.c.updateBW.emit(value)
+        """
+        Moves all particles and checks collisions.
+        Returns false if there are no particles to move, true otherwise.
+        """
 
-        #if len(self.solid_particles) > 100:
-        #    old = self.solid_particles[:50]
-        #    self.solid_particles = self.solid_particles[50:]
-        #    self.old_particles = old
+        if len(self.moving_particles) == 0:
+            return False
 
+        def outside_limit(p):
+            if self.destroy_radius is None:
+                return False
 
+            squared_dist = (p.pos_x - self.gravity_center[0])**2 + \
+                           (p.pos_y - self.gravity_center[1])**2
 
-        if len(self.moving_particles) < 100:
-            xdd = [Particle(rand() * 500, rand() * 500, self.p_size) for _ in range(100)]
-            self.moving_particles += xdd
+            return squared_dist > self.destroy_radius**2
+
+        self.moving_particles = [p for p in self.moving_particles if not outside_limit(p)]
 
         for p in self.moving_particles:
-            p.make_step(self.pixel_map, 2, self.boundaries)
+            p.apply_gravity(
+                self.gravity_center[0],
+                self.gravity_center[1],
+                self.gravity_force
+            )
+            p.make_step(self.collision_map, self.rand_step_length)
 
         new_solid = [p for p in self.moving_particles if p.solid]
         new_moving = [p for p in self.moving_particles if not p.solid]
 
-        #new_solid = [p for p in self.moving_particles if p.check_pixel_collision(self.pixel_map, 500, 500)]
-        #new_moving = [p for p in self.moving_particles if not p.check_pixel_collision(self.pixel_map, 500, 500)]
-
-        #new_solid = [p for p in self.moving_particles if p.collides(self.solid_particles)]
-        #new_moving = [p for p in self.moving_particles if not p.collides(self.solid_particles)]
-
-        #for p in new_solid:
-        #    p.solid = True
-        #    p.make_pixel_stamp(self.pixel_map, 500, 500)
-
-        for p in new_moving:
-            p.apply_gravity(250, 250, self.gravity)
-
-        self.solid_particles = new_solid
+        self.solid_particles += new_solid
         self.moving_particles = new_moving
+        self.new_solid_particles = new_solid
 
-
-
-        self.wid.set_particles(self.solid_particles + self.moving_particles)
-        self.wid.repaint()
-
-
-app = QApplication(sys.argv)
-ex = Example()
-sys.exit(app.exec_())
+        return True
