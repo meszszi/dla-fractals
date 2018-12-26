@@ -72,7 +72,7 @@ class App(QWidget):
         self.input_layout.addWidget(self.reset_button)
 
         self.gravity_slider = QSlider(Qt.Horizontal, self)
-        self.gravity_slider.setRange(0, 20)
+        self.gravity_slider.setRange(0, 100)
         self.gravity_slider.setValue(5)
         self.gravity_slider.valueChanged.connect(self.gravity_slider_change)
         self.input_layout.addWidget(self.gravity_slider)
@@ -89,6 +89,12 @@ class App(QWidget):
         self.steplength_slider.valueChanged.connect(self.steplength_slider_change)
         self.input_layout.addWidget(self.steplength_slider)
 
+        self.canvassize_slider = QSlider(Qt.Horizontal, self)
+        self.canvassize_slider.setRange(100, 1000)
+        self.canvassize_slider.setValue(500)
+        self.canvassize_slider.valueChanged.connect(self.canvassize_slider_change)
+        self.input_layout.addWidget(self.canvassize_slider)
+
         self.drawmoving_checkbox = QCheckBox("Draw moving particles", self)
         self.drawmoving_checkbox.setChecked(True)
         self.drawmoving_checkbox.stateChanged.connect(self.drawmoving_checkbox_change)
@@ -98,11 +104,14 @@ class App(QWidget):
 
         self.main_layout.addLayout(self.input_layout)
 
+        self.main_layout.addStretch()
+
         canvas_layout = QVBoxLayout()
         canvas_layout.addWidget(self.canvas)
         canvas_layout.addStretch()
 
         self.main_layout.addLayout(canvas_layout)
+        self.main_layout.addStretch()
         self.setLayout(self.main_layout)
         self.show()
 
@@ -111,7 +120,6 @@ class App(QWidget):
 
 
     def start_simulation(self):
-        print('start')
         if not self.simulation_initialized:
             self.simulation_initialized = True
             self.simulation = Simulation(
@@ -119,19 +127,19 @@ class App(QWidget):
                 self.default_canvas_size,
                 self.partrad_slider.value(),
                 (self.default_canvas_size // 2, self.default_canvas_size // 2),
-                self.gravity_slider.value(),
+                self.gravity_slider.value() / 100,
                 self.steplength_slider.value(),
-                self.default_canvas_size * 0.8
+                10
             )
             self.simulation.initialize()
             self.canvas.initialize()
             self.canvas.particles = self.simulation.new_solid_particles
             self.canvas.repaint()
+            self.canvassize_slider.setDisabled(True)
             
         self.simulation_timer.start(self.frame_interval)
 
     def stop_simulation(self):
-        print('stop')
         self.simulation_timer.stop()
 
     def reset_simulation(self):
@@ -139,12 +147,13 @@ class App(QWidget):
         self.canvas.initialize()
         self.canvas.repaint()
         self.simulation_initialized = False
+        self.canvassize_slider.setEnabled(True)
 
     def gravity_slider_change(self, value):
         if not self.simulation_initialized:
             return
 
-        scalar = 10
+        scalar = 100
         self.simulation.gravity_force = value / scalar
 
     def partrad_slider_change(self, value):
@@ -160,6 +169,13 @@ class App(QWidget):
 
         scalar = 1
         self.simulation.rand_step_length = value / scalar
+
+    def canvassize_slider_change(self, value):
+        self.canvas.width = value
+        self.canvas.height = value
+        self.canvas.initialize()
+        self.canvas.repaint()
+        self.default_canvas_size = value
 
     def drawmoving_checkbox_change(self, value):
         self.canvas.draw_moving_particles = value
