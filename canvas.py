@@ -9,12 +9,14 @@ class CanvasWidget(QWidget):
     """
 
     def __init__(self, width, height, bg_color, fg_color,
-                 border=0, border_color=None):
+                 border=0, border_color=None,
+                 antialiasing=False):
         """
         Initializes the widget with given size and particles list.
         """
         super().__init__()
 
+        # static parameters
         self.width = width
         self.height = height
         self.border = border
@@ -22,11 +24,13 @@ class CanvasWidget(QWidget):
         self.fg_color = fg_color
         self.border_color = border_color
         self.draw_moving_particles = True
+        self.antialiasing = antialiasing
 
+        # dynamic parameters
         self.particles = []
         self.pixmap = QPixmap(width + 2 * border, height + 2 * border)
-        self.init_clear_state()
-        self.init_ui()
+
+        self.initialize()
 
     def paintEvent(self, e):
         """
@@ -44,24 +48,22 @@ class CanvasWidget(QWidget):
         """
         self.setFixedSize(self.width + 2 * self.border, self.height + 2 * self.border)
 
-    def set_particles(self, particles):
+    def initialize(self):
         """
-        Sets new particles list.
+        Creates initial canvas state.
         """
-        self.particles = particles
-
-    def init_clear_state(self):
-        """
-        Creates initial pixmap consisting of the border and the background.
-        """
+        self.init_ui()
         self.particles = []
+        self.pixmap = QPixmap(
+            self.width + 2 * self.border,
+            self.height + 2 * self.border
+        )
         qp = QPainter(self.pixmap)
-        #qp.setRenderHint(QPainter.Antialiasing, True)
+        qp.setRenderHint(QPainter.Antialiasing, self.antialiasing)
 
-        if self.border > 0:
-            qp.setBrush(self.border_color)
-            qp.setPen(self.border_color)
-            qp.drawRect(0, 0, self.width + 2 * self.border, self.height + 2 * self.border)
+        qp.setBrush(self.border_color)
+        qp.setPen(self.border_color)
+        qp.drawRect(0, 0, self.width + 2 * self.border, self.height + 2 * self.border)
 
         qp.setBrush(self.bg_color)
         qp.setPen(self.bg_color)
@@ -72,7 +74,7 @@ class CanvasWidget(QWidget):
         Draws all solid particles from self.particles onto self.pixmap.
         """
         qp = QPainter(self.pixmap)
-        #qp.setRenderHint(QPainter.Antialiasing, True)
+        qp.setRenderHint(QPainter.Antialiasing, self.antialiasing)
 
         qp.setClipRect(self.border, self.border, self.width, self.height)
         qp.setBrush(self.fg_color)
@@ -89,7 +91,7 @@ class CanvasWidget(QWidget):
         particle to the resulting image.
         """
         qp.drawPixmap(0, 0, self.pixmap)
-        #qp.setRenderHint(QPainter.Antialiasing, True)
+        qp.setRenderHint(QPainter.Antialiasing, self.antialiasing)
 
         qp.setClipRect(self.border, self.border, self.width, self.height)
         qp.setBrush(self.fg_color)
@@ -101,21 +103,12 @@ class CanvasWidget(QWidget):
                 top = self.width - (p.pos_y + p.radius)
                 qp.drawEllipse(left, top, p.radius * 2, p.radius * 2)
 
-    def change_size(self, width, height, border=None):
+    def change_size(self, width, height, border=0):
         """
         Modifies the size of the canvas and updates all necessary structures.
         """
         self.width = width
         self.height = height
+        self.border = border
 
-        if border is not None:
-            self.border = border
-
-        self.init_clear_state()
-        self.init_ui()
-
-    def clear(self):
-        """
-        Clears the canvas state.
-        """
-        self.init_clear_state()
+        self.initialize()

@@ -15,9 +15,9 @@ class Simulation:
                  particle_radius,
                  gravity_center, gravity_force,
                  rand_step_length,
-                 spawns, particles_per_spawn,
-                 min_spawn_radius, max_spawn_radius,
-                 destroy_radius=None
+                 spawn_radius,
+                 particles_limit=-1,
+                 moving_particles_limit=100
                  ):
         """
         Initializes simulation parameters
@@ -27,13 +27,12 @@ class Simulation:
         :param gravity_center:      coordinates of gravity center
         :param gravity_force:       value of gravity force
         :param rand_step_length:    length of random step applied to each moving particle
-        :param spawns:              number of spawns that will be simulated
-        :param particles_per_spawn: number of particles spawned in each single spawn
-        :param min_spawn_radius:    minimal distance from gravity center to newly spawned particle
-        :param max_spawn_radius:    maximal distance from gravity center to newly spawned particle
-        :param destroy_radius:      radius limiting the area outside which all the particles are destroyed
+        :param spawn_radius:        distance from the gravity center where the particles are created
+        :param particles_limit:     number of all particles to be created during the simulation
+        :moving_particles_limit:    maximal number of moving particles that can be simulated
         """
 
+        # static parameters
         self.width = width
         self.height = height
         self.particle_radius = particle_radius
@@ -43,26 +42,22 @@ class Simulation:
 
         self.rand_step_length = rand_step_length
 
-        self.spawns = spawns
-        self.spawn_number = None
-        self.particles_per_spawn = particles_per_spawn
+        self.particles_limit = particles_limit
+        self.moving_particles_limit = moving_particles_limit
 
-        self.min_spawn_radius = min_spawn_radius
-        self.max_spawn_radius = max_spawn_radius
-        self.destroy_radius = destroy_radius
+        self.spawn_radius = spawn_radius
 
+        # dynamic parameters
         self.collision_map = None
-        self.solid_particles = []
+
         self.moving_particles = []
-
         self.new_solid_particles = []
+        self.particles_count = 0
 
-    def initialize_simulation(self):
+    def initialize(self):
         """
-        Creates initial simulation state.
+        Creates clear initial simulation state.
         """
-        self.spawn_number = 0
-
         self.collision_map = np.zeros(shape=(self.height, self.width))
 
         center = Particle(
@@ -73,32 +68,32 @@ class Simulation:
 
         center.make_pixel_stamp(self.collision_map)
 
-        self.solid_particles = [center]
         self.moving_particles = []
-        self.new_solid_particles = []
+        self.new_solid_particles = [center]
+        self.particles_count = 1
 
-    def spawn_particles(self):
+    def _produce_particles(self):
         """
-        Spawns new particles set.
-        Returns false if the limit of spawns number is reached, true otherwise.
+        Creates new particles set.
+        Returns false if no more particles can be created.
         """
-        if self.spawn_number == self.spawns:
-            return False
+        count = min(
+            self.particles_limit - self.particles_count,
+            self.moving_particles_limit, len(self.moving_particles)
+        )
 
-        self.spawn_number += 1
-
-        radius_range = self.max_spawn_radius - self.min_spawn_radius
+        if self.particles_limit == -1:
+            count = self.moving_particles_limit - len(self.moving_particles)
 
         def rand_particle():
-            r = rand() * radius_range + self.min_spawn_radius
             a = rand() * 2 * np.pi
             return Particle(
-                self.gravity_center[0] + np.cos(a) * r,
-                self.gravity_center[1] + np.sin(a) * r,
+                self.gravity_center[0] + np.cos(a) * self.spawn_radius,
+                self.gravity_center[1] + np.sin(a) * self.spawn_radius,
                 self.particle_radius
             )
 
-        new_particles = [rand_particle() for _ in range(self.particles_per_spawn)]
+        new_particles = [rand_particle() for _ in range(count)]
         self.moving_particles += new_particles
         return True
 
@@ -107,20 +102,10 @@ class Simulation:
         Moves all particles and checks collisions.
         Returns false if there are no particles to move, true otherwise.
         """
+        self._produce_particles()
 
         if len(self.moving_particles) == 0:
             return False
-
-        def outside_limit(p):
-            if self.destroy_radius is None:
-                return False
-
-            squared_dist = (p.pos_x - self.gravity_center[0])**2 + \
-                           (p.pos_y - self.gravity_center[1])**2
-
-            return squared_dist > self.destroy_radius**2
-
-        self.moving_particles = [p for p in self.moving_particles if not outside_limit(p)]
 
         for p in self.moving_particles:
             p.apply_gravity(
@@ -133,7 +118,6 @@ class Simulation:
         new_solid = [p for p in self.moving_particles if p.solid]
         new_moving = [p for p in self.moving_particles if not p.solid]
 
-        self.solid_particles += new_solid
         self.moving_particles = new_moving
         self.new_solid_particles = new_solid
 
