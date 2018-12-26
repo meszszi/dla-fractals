@@ -54,6 +54,8 @@ class Simulation:
         self.new_solid_particles = []
         self.particles_count = 0
 
+        self.fractal_radius = 0
+
     def initialize(self):
         """
         Creates clear initial simulation state.
@@ -71,6 +73,7 @@ class Simulation:
         self.moving_particles = []
         self.new_solid_particles = [center]
         self.particles_count = 1
+        self.fractal_radius = 0
 
     def _produce_particles(self):
         """
@@ -87,9 +90,10 @@ class Simulation:
 
         def rand_particle():
             a = rand() * 2 * np.pi
+            r = rand() * self.spawn_radius + self.fractal_radius
             return Particle(
-                self.gravity_center[0] + np.cos(a) * self.spawn_radius,
-                self.gravity_center[1] + np.sin(a) * self.spawn_radius,
+                self.gravity_center[0] + np.cos(a) * r,
+                self.gravity_center[1] + np.sin(a) * r,
                 self.particle_radius
             )
 
@@ -117,6 +121,13 @@ class Simulation:
 
         new_solid = [p for p in self.moving_particles if p.solid]
         new_moving = [p for p in self.moving_particles if not p.solid]
+
+        for p in new_solid:
+            fr = (p.pos_x - self.gravity_center[0])**2 + \
+                 (p.pos_y - self.gravity_center[1])**2
+            fr = np.sqrt(fr)
+            if fr > self.fractal_radius:
+                self.fractal_radius = fr
 
         self.moving_particles = new_moving
         self.new_solid_particles = new_solid
