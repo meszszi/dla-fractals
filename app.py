@@ -27,13 +27,14 @@ class App(QWidget):
         self.frame_interval = frame_interval
         self.default_canvas_size = default_canvas_size
 
-        self._default_fg_color = QColor(200, 200, 200)
-        self._default_bg_color = QColor(20, 20, 20)
+        self.primary_color = QColor(20, 20, 20)
+        self.secondary_color = QColor(20, 20, 20)
+        self._default_bg_color = QColor(200, 200, 200)
 
         self.canvas = CanvasWidget(
             self.default_canvas_size, self.default_canvas_size,
             self._default_bg_color,
-            self._default_fg_color,
+            self.primary_color,
             border=1,
             border_color=QColor(0, 0, 0)
         )
@@ -41,6 +42,8 @@ class App(QWidget):
         self.simulation = None
         self.simulation_initialized = False
         self.simulation_running = False
+
+        self.color_scalar = 0
 
         self.init_ui()
 
@@ -115,12 +118,27 @@ class App(QWidget):
         back_color_button = ColorButton("Background color", self,
                                         initial_color=self._default_bg_color)
         back_color_button.colorChanged.connect(self.back_color_changed)
+        back_color_button.setMaximumWidth(200)
         input_layout.addWidget(back_color_button)
 
         primary_color_button = ColorButton("Primary color", self,
-                                           initial_color=self._default_fg_color)
+                                           initial_color=self.primary_color)
         primary_color_button.colorChanged.connect(self.primary_color_changed)
+        primary_color_button.setMaximumWidth(200)
         input_layout.addWidget(primary_color_button)
+
+        secondary_color_button = ColorButton("Secondary color", self,
+                                             initial_color=self.primary_color)
+        secondary_color_button.colorChanged.connect(self.secondary_color_changed)
+        secondary_color_button.setMaximumWidth(200)
+        input_layout.addWidget(secondary_color_button)
+
+        color_change_sl = LabeledSlider("Color change speed", 0, 100, self,
+                                  sliders_label_width,
+                                  slider_width=sliders_width, widget_width=500)
+        self.color_slider = color_change_sl.slider
+        self.color_slider.setValue(0)
+        input_layout.addWidget(color_change_sl)
 
         input_layout.addStretch()
 
@@ -165,10 +183,11 @@ class App(QWidget):
                 (self.default_canvas_size // 2, self.default_canvas_size // 2),
                 self.gravity_slider.value() / 100,
                 self.steplength_slider.value(),
-                10
+                100
             )
             self.simulation.initialize()
             self.canvas.initialize()
+            self.canvas.fg_color = self.primary_color
             self.canvas.particles = self.simulation.new_solid_particles
             self.canvas.repaint()
             self.canvassize_slider.setDisabled(True)
@@ -195,6 +214,7 @@ class App(QWidget):
         self.canvassize_slider.setEnabled(True)
         self.reset_button.setDisabled(True)
         self.clear_statistics()
+        self.color_scalar = 0
 
     def gravity_slider_change(self, value):
         if not self.simulation_initialized:
@@ -232,8 +252,28 @@ class App(QWidget):
         self.canvas.repaint()
 
     def primary_color_changed(self, color):
-        self.canvas.fg_color = color
-        self.canvas.repaint()
+        self.primary_color = color
+        self.color_scalar = 0
+
+    def secondary_color_changed(self, color):
+        self.secondary_color = color
+        self.color_scalar = 0
+        
+    def _calculate_new_color(self):
+        dr = (self.secondary_color.red() - self.primary_color.red()) * self.color_scalar
+        dg = (self.secondary_color.green() - self.primary_color.green()) * self.color_scalar
+        db = (self.secondary_color.blue() - self.primary_color.blue()) * self.color_scalar
+
+        next_color = QColor(
+            self.primary_color.red() + int(dr),
+            self.primary_color.green() + int(dg),
+            self.primary_color.blue() + int(db),
+        )
+
+        self.color_scalar += self.color_slider.value() / 10000
+        self.color_scalar = min(self.color_scalar, 1.)
+
+        return next_color
 
     def update_simulation(self):
         """
@@ -248,6 +288,8 @@ class App(QWidget):
             self.simulation.new_solid_particles + self.simulation.moving_particles)
 
         self.update_statistics()
+
+        self.canvas.fg_color = self._calculate_new_color()
 
         self.canvas.repaint()
 
