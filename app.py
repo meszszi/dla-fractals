@@ -1,16 +1,33 @@
 from PyQt5.QtWidgets import (QWidget, QSlider, QApplication,
                              QHBoxLayout, QVBoxLayout,
-                             QPushButton, QCheckBox)
+                             QPushButton, QCheckBox, QLabel)
 from PyQt5.QtCore import QObject, Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QColor
 import sys
 
 from canvas import CanvasWidget
 from simulation import Simulation
-from particles import Particle
 
-class Communicate(QObject):
-    updateBW = pyqtSignal(int)
+class LabeledSlider(QWidget):
+    def __init__(self, label, range_min, range_max, parent, label_width=200):
+        super().__init__(parent)
+        self.label = label
+        self.range_min = range_min
+        self.range_max = range_max
+        layout = QHBoxLayout(self)
+
+        self.value_label = QLabel(self.label + " = " + str(range_min), self)
+        self.value_label.setFixedWidth(label_width)
+        layout.addWidget(self.value_label)
+        layout.addWidget(QLabel(str(range_min), self))
+        self.slider = QSlider(Qt.Horizontal, parent)
+        self.slider.setRange(range_min, range_max)
+        layout.addWidget(self.slider)
+        layout.addWidget(QLabel(str(range_max), self))
+        self.slider.valueChanged.connect(self.value_changed)
+
+    def value_changed(self, value):
+        self.value_label.setText(self.label + " = " + str(value))
 
 class App(QWidget):
     """
@@ -57,43 +74,49 @@ class App(QWidget):
         """
 
         self.input_layout = QVBoxLayout()
+        self.input_layout.setStretch(2, 1)
         self.main_layout = QHBoxLayout()
 
         self.start_button = QPushButton("Start", self)
+        #self.start_button.setFixedWidth(200)
         self.start_button.clicked.connect(self.start_simulation)
         self.input_layout.addWidget(self.start_button)
 
         self.stop_button = QPushButton("Stop", self)
+        #self.stop_button.setFixedWidth(200)
         self.stop_button.clicked.connect(self.stop_simulation)
         self.input_layout.addWidget(self.stop_button)
 
         self.reset_button = QPushButton("Reset", self)
+        #self.reset_button.setFixedWidth(200)
         self.reset_button.clicked.connect(self.reset_simulation)
         self.input_layout.addWidget(self.reset_button)
 
-        self.gravity_slider = QSlider(Qt.Horizontal, self)
-        self.gravity_slider.setRange(0, 100)
-        self.gravity_slider.setValue(5)
-        self.gravity_slider.valueChanged.connect(self.gravity_slider_change)
-        self.input_layout.addWidget(self.gravity_slider)
+        sliders_label_width = 200
 
-        self.partrad_slider = QSlider(Qt.Horizontal, self)
-        self.partrad_slider.setRange(1, 10)
+        gravity_sl = LabeledSlider("Gravity", 0, 100, self, sliders_label_width)
+        self.gravity_slider = gravity_sl.slider
+        self.gravity_slider.setValue(50)
+        self.gravity_slider.valueChanged.connect(self.gravity_slider_change)
+        self.input_layout.addWidget(gravity_sl)
+
+        part_sl = LabeledSlider("Particle radius", 1, 10, self, sliders_label_width)
+        self.partrad_slider = part_sl.slider
         self.partrad_slider.setValue(3)
         self.partrad_slider.valueChanged.connect(self.partrad_slider_change)
-        self.input_layout.addWidget(self.partrad_slider)
+        self.input_layout.addWidget(part_sl)
 
-        self.steplength_slider = QSlider(Qt.Horizontal, self)
-        self.steplength_slider.setRange(0, 10)
+        step_sl = LabeledSlider("Random step length", 0, 10, self, sliders_label_width)
+        self.steplength_slider = step_sl.slider
         self.steplength_slider.setValue(5)
         self.steplength_slider.valueChanged.connect(self.steplength_slider_change)
-        self.input_layout.addWidget(self.steplength_slider)
+        self.input_layout.addWidget(step_sl)
 
-        self.canvassize_slider = QSlider(Qt.Horizontal, self)
-        self.canvassize_slider.setRange(100, 1000)
+        canvas_sl = LabeledSlider("Canvas size", 100, 900, self, sliders_label_width)
+        self.canvassize_slider = canvas_sl.slider
         self.canvassize_slider.setValue(500)
         self.canvassize_slider.valueChanged.connect(self.canvassize_slider_change)
-        self.input_layout.addWidget(self.canvassize_slider)
+        self.input_layout.addWidget(canvas_sl)
 
         self.drawmoving_checkbox = QCheckBox("Draw moving particles", self)
         self.drawmoving_checkbox.setChecked(True)
