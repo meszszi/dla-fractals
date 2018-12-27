@@ -7,77 +7,7 @@ import sys
 
 from canvas import CanvasWidget
 from simulation import Simulation
-
-class LabeledSlider(QWidget):
-    """
-    Custom slider widget that shows slider range boundaries and current value.
-    """
-
-    def __init__(self, label, range_min, range_max, parent,
-                 label_width=200, slider_width=100, range_value_width=30,
-                 widget_width=None):
-
-        super().__init__(parent)
-        self.label = label
-
-        layout = QHBoxLayout(self)
-
-        self.value_label = QLabel(self.label + " = " + str(range_min), self)
-        self.value_label.setMinimumWidth(label_width)
-        layout.addWidget(self.value_label)
-
-        layout.addStretch()
-
-        range_min_label = QLabel(str(range_min), self)
-        range_min_label.setMinimumWidth(range_value_width)
-        range_min_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(range_min_label)
-
-        self.slider = QSlider(Qt.Horizontal, parent)
-        self.slider.setRange(range_min, range_max)
-        self.slider.setMinimumWidth(slider_width)
-        layout.addWidget(self.slider)
-
-        range_max_label = QLabel(str(range_max), self)
-        range_max_label.setMinimumWidth(range_value_width)
-        range_max_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(range_max_label)
-
-        self.slider.valueChanged.connect(self.value_changed)
-
-        if widget_width is not None:
-            self.setFixedWidth(widget_width)
-
-    def value_changed(self, value):
-        self.value_label.setText(self.label + " = " + str(value))
-
-
-class StatsLabel(QWidget):
-    """
-    Custom label widget that shows current simulation statistics.
-    """
-
-    def __init__(self, label, init_value, parent,
-                 label_width=200, value_width=50,
-                 widget_width=None):
-
-        super().__init__(parent)
-        layout = QHBoxLayout(self)
-
-        label_widget = QLabel(label + ":", self)
-        label_widget.setMinimumWidth(label_width)
-        layout.addWidget(label_widget)
-
-        layout.addStretch()
-
-        self.value_label = QLabel(str(init_value), self)
-        self.value_label.setMinimumWidth(value_width)
-        self.value_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.value_label)
-
-        if widget_width is not None:
-            self.setFixedWidth(widget_width)
-
+from customWidgets import LabeledSlider, StatsLabel, ColorButton
 
 class App(QWidget):
     """
@@ -97,10 +27,13 @@ class App(QWidget):
         self.frame_interval = frame_interval
         self.default_canvas_size = default_canvas_size
 
+        self._default_fg_color = QColor(200, 200, 200)
+        self._default_bg_color = QColor(20, 20, 20)
+
         self.canvas = CanvasWidget(
             self.default_canvas_size, self.default_canvas_size,
-            QColor(250, 250, 250),
-            QColor(20, 20, 20),
+            self._default_bg_color,
+            self._default_fg_color,
             border=1,
             border_color=QColor(0, 0, 0)
         )
@@ -178,6 +111,16 @@ class App(QWidget):
         self.drawmoving_checkbox.setChecked(True)
         self.drawmoving_checkbox.stateChanged.connect(self.drawmoving_checkbox_change)
         input_layout.addWidget(self.drawmoving_checkbox)
+
+        back_color_button = ColorButton("Background color", self,
+                                        initial_color=self._default_bg_color)
+        back_color_button.colorChanged.connect(self.back_color_changed)
+        input_layout.addWidget(back_color_button)
+
+        primary_color_button = ColorButton("Primary color", self,
+                                           initial_color=self._default_fg_color)
+        primary_color_button.colorChanged.connect(self.primary_color_changed)
+        input_layout.addWidget(primary_color_button)
 
         input_layout.addStretch()
 
@@ -283,6 +226,14 @@ class App(QWidget):
 
     def drawmoving_checkbox_change(self, value):
         self.canvas.draw_moving_particles = value
+
+    def back_color_changed(self, color):
+        self.canvas.bg_color = color
+        self.canvas.repaint()
+
+    def primary_color_changed(self, color):
+        self.canvas.fg_color = color
+        self.canvas.repaint()
 
     def update_simulation(self):
         """

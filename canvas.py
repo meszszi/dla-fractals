@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtGui import QPainter, QPixmap
+from PyQt5.QtGui import QPainter, QPixmap, QColor
 
 
 class CanvasWidget(QWidget):
@@ -28,7 +28,7 @@ class CanvasWidget(QWidget):
 
         # dynamic parameters
         self.particles = []
-        self.pixmap = QPixmap(width + 2 * border, height + 2 * border)
+        self.pixmap = None
 
         self.initialize()
 
@@ -36,7 +36,6 @@ class CanvasWidget(QWidget):
         """
         Executed every time the widget is redrawn on the app window.
         """
-        self.draw_permanent_particles()
         qp = QPainter()
         qp.begin(self)
         self.draw_widget(qp)
@@ -58,22 +57,28 @@ class CanvasWidget(QWidget):
             self.width + 2 * self.border,
             self.height + 2 * self.border
         )
-        qp = QPainter(self.pixmap)
+        self.pixmap.fill(QColor(0, 0, 0, 0))
+        # qp = QPainter()
+        # qp.begin(self)
+        # self._draw_background(qp)
+        # qp.end()
+
+    def _draw_background(self, qp):
         qp.setRenderHint(QPainter.Antialiasing, self.antialiasing)
 
         qp.setBrush(self.border_color)
         qp.setPen(self.border_color)
-        qp.drawRect(0, 0, self.width + 2 * self.border, self.height + 2 * self.border)
+        qp.drawRect(0, 0, self.width + 2 * self.border,
+                    self.height + 2 * self.border)
 
         qp.setBrush(self.bg_color)
         qp.setPen(self.bg_color)
         qp.drawRect(self.border, self.border, self.width, self.height)
 
-    def draw_permanent_particles(self):
+    def _draw_solid_particles(self, qp):
         """
         Draws all solid particles from self.particles onto self.pixmap.
         """
-        qp = QPainter(self.pixmap)
         qp.setRenderHint(QPainter.Antialiasing, self.antialiasing)
 
         qp.setClipRect(self.border, self.border, self.width, self.height)
@@ -85,23 +90,35 @@ class CanvasWidget(QWidget):
             top = self.width - (p.pos_y + p.radius)
             qp.drawEllipse(left, top, p.radius * 2, p.radius * 2)
 
-    def draw_widget(self, qp):
+    def _draw_moving_particles(self, qp):
         """
-        Draws the widget by drawing permanent pixmap and adding every non-solid
-        particle to the resulting image.
+        Draws all moving particles from self.particles using given painter.
         """
-        qp.drawPixmap(0, 0, self.pixmap)
         qp.setRenderHint(QPainter.Antialiasing, self.antialiasing)
 
         qp.setClipRect(self.border, self.border, self.width, self.height)
         qp.setBrush(self.fg_color)
         qp.setPen(self.fg_color)
 
+        for p in filter(lambda o: not o.solid, self.particles):
+            left = p.pos_x - p.radius
+            top = self.width - (p.pos_y + p.radius)
+            qp.drawEllipse(left, top, p.radius * 2, p.radius * 2)
+
+    def draw_widget(self, qp):
+        """
+        Draws the widget by drawing permanent pixmap and adding every non-solid
+        particle to the resulting image.
+        """
+        permanent_qp = QPainter(self.pixmap)
+
+        self._draw_background(qp)
+
+        self._draw_solid_particles(permanent_qp)
+        qp.drawPixmap(0, 0, self.pixmap)
+
         if self.draw_moving_particles:
-            for p in filter(lambda o: not o.solid, self.particles):
-                left = p.pos_x - p.radius
-                top = self.width - (p.pos_y + p.radius)
-                qp.drawEllipse(left, top, p.radius * 2, p.radius * 2)
+            self._draw_moving_particles(qp)
 
     def change_size(self, width, height, border=0):
         """
