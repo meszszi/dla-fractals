@@ -55,6 +55,7 @@ class Simulation:
         self.particles_count = 0
 
         self.fractal_radius = 0
+        self.solid_particles = 0
 
     def initialize(self):
         """
@@ -98,8 +99,12 @@ class Simulation:
             )
 
         new_particles = [rand_particle() for _ in range(count)]
+        self.particles_count += len(new_particles)
         self.moving_particles += new_particles
         return True
+
+    def count_solid_particles(self):
+        return self.particles_count - len(self.moving_particles)
 
     def update_particles(self):
         """
