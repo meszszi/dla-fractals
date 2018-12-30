@@ -103,6 +103,21 @@ class App(QWidget):
         self.steplength_slider.valueChanged.connect(self.steplength_slider_change)
         input_layout.addWidget(step_sl)
 
+        part_limit_sl = LabeledSlider("Moving particles limit", 1, 200, self,
+                                sliders_label_width,
+                                slider_width=sliders_width, widget_width=500)
+        self.partlimit_slider = part_limit_sl.slider
+        self.partlimit_slider.setValue(100)
+        input_layout.addWidget(part_limit_sl)
+
+        spawn_range_sl = LabeledSlider("Particles spawn range", 0, 300, self,
+                                      sliders_label_width,
+                                      slider_width=sliders_width,
+                                      widget_width=500)
+        self.spawnrange_slider = spawn_range_sl.slider
+        self.spawnrange_slider.setValue(100)
+        input_layout.addWidget(spawn_range_sl)
+
         canvas_sl = LabeledSlider("Canvas size", 100, 900, self, sliders_label_width,
                                    slider_width=sliders_width, widget_width=500)
         self.canvassize_slider = canvas_sl.slider
@@ -110,7 +125,7 @@ class App(QWidget):
         self.canvassize_slider.valueChanged.connect(self.canvassize_slider_change)
         input_layout.addWidget(canvas_sl)
 
-        self.drawmoving_checkbox = QCheckBox("Draw moving particles", self)
+        self.drawmoving_checkbox = QCheckBox("Show moving particles", self)
         self.drawmoving_checkbox.setChecked(True)
         self.drawmoving_checkbox.stateChanged.connect(self.drawmoving_checkbox_change)
         input_layout.addWidget(self.drawmoving_checkbox)
@@ -144,11 +159,11 @@ class App(QWidget):
 
         statistics_layout = QVBoxLayout()
 
-        solid_particles_label = StatsLabel("Solid particles", 0, self, label_width=100, widget_width=400)
+        solid_particles_label = StatsLabel("Solid particles", 0, self, label_width=100, widget_width=300)
         self.solid_particles_value = solid_particles_label.value_label
         statistics_layout.addWidget(solid_particles_label)
 
-        fractal_radius_label = StatsLabel("Fractal radius", 0, self, label_width=100, widget_width=400)
+        fractal_radius_label = StatsLabel("Fractal radius", 0, self, label_width=100, widget_width=300)
         self.fractal_radius_value = fractal_radius_label.value_label
         statistics_layout.addWidget(fractal_radius_label)
 
@@ -246,6 +261,7 @@ class App(QWidget):
 
     def drawmoving_checkbox_change(self, value):
         self.canvas.draw_moving_particles = value
+        self.canvas.repaint()
 
     def back_color_changed(self, color):
         self.canvas.bg_color = color
@@ -280,9 +296,12 @@ class App(QWidget):
         Updates simulation state and repaints the canvas.
         :return:
         """
+
+        self.simulation.moving_particles_limit = self.partlimit_slider.value()
+        self.simulation.spawn_radius = self.spawnrange_slider.value()
+
         if not self.simulation.update_particles():
-            if not self.simulation.spawn_particles():
-                self.stop_simulation()
+            self.stop_simulation()
 
         self.canvas.particles = (
             self.simulation.new_solid_particles + self.simulation.moving_particles)

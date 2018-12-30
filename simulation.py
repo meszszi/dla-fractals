@@ -2,6 +2,7 @@ from particles import Particle
 
 from numpy.random import rand
 import numpy as np
+import random
 
 
 class Simulation:
@@ -99,6 +100,12 @@ class Simulation:
             )
 
         new_particles = [rand_particle() for _ in range(count)]
+
+        for i in range(-count):
+            index = random.randint(0, len(self.moving_particles) - 1)
+            self.moving_particles.pop(index)
+            self.particles_count -= 1
+
         self.particles_count += len(new_particles)
         self.moving_particles += new_particles
         return True

@@ -52,6 +52,9 @@ class Particle:
             if pixel_map[y][x] > 0:
                 return True
 
+        if (0 < self.pos_x < width) and (0 < self.pos_y < height):
+            return pixel_map[int(self.pos_y)][int(self.pos_x)] > 0
+
         return False
 
     def make_pixel_stamp(self, pixel_map):
@@ -86,7 +89,7 @@ class Particle:
         self.speed_x += force_x
         self.speed_y += force_y
 
-    def apply_gravity(self, source_x, source_y, force):
+    def apply_gravity(self, source_x, source_y, force, eps=0.0000001):
         """
         Adds speed vector pointing towards the source point
         with given force value.
@@ -94,6 +97,9 @@ class Particle:
         diff_x = source_x - self.pos_x
         diff_y = source_y - self.pos_y
         diff_length = np.sqrt(np.square(diff_x) + np.square(diff_y))
+
+        if diff_length < eps:
+            return
 
         scalar = force / diff_length
         self.apply_force(diff_x * scalar, diff_y * scalar)

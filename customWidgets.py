@@ -96,7 +96,11 @@ class ColorButton(QPushButton):
         self.clicked.connect(self._pick_color)
 
     def _pick_color(self):
-        self.color = QColorDialog.getColor()
+        color = QColorDialog.getColor()
+        if not color.isValid():
+            return
+
+        self.color = color
         self._set_colours()
         self.colorChanged.emit(self.color)
 
